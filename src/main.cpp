@@ -212,9 +212,6 @@ int main() {
   }
 
 
-
-
-
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -255,17 +252,7 @@ int main() {
           auto sensor_fusion = j[1]["sensor_fusion"];
 
 
-
-//	        // start in lane 1
-//	        int lane = 1; // 0: left lane, 1: middle lane; 2: right lane
-//
-//	        // have a reference velocity to target
-//	        double ref_vel = 0; //mph
-
-
-
 	        // sensor fusion parts
-
 	        if(prev_size >0)
 		        car_s = end_path_s;
 
@@ -414,6 +401,7 @@ int main() {
 	        s.set_points(ptsx, ptsy);
 
 	        // define the actual (x,y) points we will use for the planner
+	        // the car will visit sequentially every .02 seconds
 	        vector<double> next_x_vals;
 	        vector<double> next_y_vals;
 
@@ -425,7 +413,7 @@ int main() {
 	        }
 
 	        // calculate how to break up spline points so that we travel at our desired reference velocity
-	        double target_x = 30;
+	        double target_x = 30;  // path planner's farthest point is 30 meters ahead
 	        double target_y = s(target_x);
 	        double target_dist = sqrt( target_x * target_x + target_y * target_y);
 	        double x_add_on = 0;
@@ -433,7 +421,7 @@ int main() {
 	        double N = target_dist / (0.02*ref_vel/2.24);  // divide by 2.24 to transfer from miles/h to meters/s
 	        double x_step = target_x / N;
 
-	        for (int i = 1; i <= 50 - previous_path_x.size(); i++){
+	        for (int i = 1; i <= 50 - previous_path_x.size(); i++){ // 50: defined total number of points
 
 		        double x_point = x_add_on + x_step;
 		        double y_point = s(x_point);
@@ -443,7 +431,7 @@ int main() {
 		        double x_ref = x_point;
 		        double y_ref = y_point;
 
-		        // rotate back to world coordinate after rotating it eariler
+		        // rotate back to world coordinate after rotating it earlier
 		        x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
 		        y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
 
@@ -455,63 +443,6 @@ int main() {
 	        }
 
 
-
-
-
-
-/*
-          // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-	        double dist_inc = 0.3; // how much the two sequential points are spacing apart, in meters
-	        for(int i = 0; i < 50; i++)
-	        {
-
-		        double next_s = car_s + (i+1) * dist_inc;
-		        double next_d = 6; // each lane width is 4 meters, one-and-a-half lane is 6 meters
-		        vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-		        next_x_vals.push_back(xy[0]);
-		        next_y_vals.push_back(xy[1]);
-	        }
-*/
-
-/*
-	        double pos_x;
-	        double pos_y;
-	        double angle;
-	        int path_size = previous_path_x.size();
-
-	        for(int i = 0; i < path_size; i++)
-	        {
-		        next_x_vals.push_back(previous_path_x[i]);
-		        next_y_vals.push_back(previous_path_y[i]);
-	        }
-
-	        if(path_size == 0)
-	        {
-		        pos_x = car_x;
-		        pos_y = car_y;
-		        angle = deg2rad(car_yaw);
-	        }
-	        else
-	        {
-		        pos_x = previous_path_x[path_size-1];
-		        pos_y = previous_path_y[path_size-1];
-
-		        double pos_x2 = previous_path_x[path_size-2];
-		        double pos_y2 = previous_path_y[path_size-2];
-		        angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-	        }
-
-	        double dist_inc = 0.5;  // how much the two sequential points are spacing apart, 0.5 meters
-	        for(int i = 0; i < 50-path_size; i++)
-	        {
-		        next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
-		        next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
-		        pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-		        pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-	        }
-
-*/
 	        json msgJson;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
