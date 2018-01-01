@@ -270,40 +270,69 @@ int main() {
 		        car_s = end_path_s;
 
 	        bool too_close = false;
+	        bool left_available = true;
+	        bool right_available = true;
+	        double safe_distance = 30.0; // safe distance to keep in meters
 
 	        // Go through other visible cars tracked by sensor fusion
 	        for(int i=0; i<sensor_fusion.size(); i++){
 
-		        // check whether this car is in my lane
+		        double vx = sensor_fusion[i][3];
+		        double vy = sensor_fusion[i][4];
+		        double check_speed = sqrt(vx*vx + vy*vy); // calculate the magnitude velocity
+		        double check_car_s = sensor_fusion[i][5];
 		        float d = sensor_fusion[i][6]; // the 7th value is d value
+		        // if we are using the previous points, we need to project s value outward to predict the future s value
+		        check_car_s += double(prev_size) * 0.02 * check_speed;
+
+		        // check_car is in the same lane as my car
 		        if( d < (2+4*lane+2) && d > (2+4*lane-2) ){
-			        double vx = sensor_fusion[i][3];
-			        double vy = sensor_fusion[i][4];
-			        double check_speed = sqrt(vx*vx + vy*vy); // calculate the magnitude velocity
-			        double check_car_s = sensor_fusion[i][5];
-
-			        // if we are using the previous points, we need to project s value outwards
-			        // to predict the future s
-			        check_car_s += double(prev_size * 0.02 * check_speed);
-
 			        // check whether the car is in front of us, and whether the gap is less than 30m
-			        if( check_car_s > car_s && (check_car_s - car_s) < 30 ){
-
-				        //ref_vel = 29.5; //mph
+			        if( check_car_s > car_s && (check_car_s - car_s) < safe_distance ){
 				        too_close = true;
+			        }
+		        }
 
-								// add cost function to change the lane
-				        if (lane > 0)
-					        lane = 0;
+		        // check_car is in the left lane
+		        int left_lane = lane - 1;
+		        if( left_available &&  // left lane is occupied
+		            left_lane >= 0 &&  // left lane is a valid lane
+		            ( d < (2+4*left_lane+2) && d > (2+4*left_lane-2) )  ){ // check_car is driving in left lane
 
+			        double delta_distance = abs(check_car_s - car_s); // no matter the check_car is ahead or after
+			        if (delta_distance < safe_distance){
+				        left_available = false;
+			        }
+		        }
+
+		        // check_car is in the right lane
+		        int right_lane = lane + 1;
+		        if( right_available &&  // right lane is occupied
+		            right_lane >= 0 &&  // right lane is a valid lane
+		            ( d < (2+4*right_lane+2) && d > (2+4*right_lane-2) )  ){ // check_car is driving in right lane
+
+			        double delta_distance = abs(check_car_s - car_s); // no matter the check_car is ahead or after
+			        if (delta_distance < safe_distance){
+				        right_available = false;
 			        }
 		        }
 	        }
 
 
 
-	        if(too_close)
-		        ref_vel -= 0.224;  // is about 5 m/s2, which is under the requirement 10 m/s2
+	        if(too_close) // 3 options: change to left, change to right, slow down
+
+		        if (lane >0 && left_available){
+			        lane -= 1;
+			        cout << "Change to left lane." << endl;
+		        } else if (lane < 2 && right_available){
+			        lane += 1;
+			        cout << "Change to right lane." << endl;
+		        } else{ // slow down
+			        ref_vel -= 0.224;  // is about 5 m/s2, which is under the requirement 10 m/s2
+		        }
+
+		      // speed up
 	        else if(ref_vel < 49.5) // speed limit is 49.5 mph
 		        ref_vel += 0.224;
 
