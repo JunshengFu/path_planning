@@ -30,7 +30,6 @@ comfortable.
 * [data](data) csv file for highway maps.
 * [images](images) contains examples.
 * [install-uWebSockets](install-uWebSockets) contains the bash scripts to install uWebSockets.
-* [data](data) folder contains the KITTI road data, the VGG model and source images.
 * [CMakeLists.txt](CMakeLists.txt) is the CMake file.
 
  
