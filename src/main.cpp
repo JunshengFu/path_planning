@@ -170,7 +170,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 int lane = 1; // 0: left lane, 1: middle lane; 2: right lane
 
 // have a reference velocity to target
-double ref_vel = 0; //mph
+double ref_vel = 0.0; // speed limt is 50 mph
 
 int main() {
   uWS::Hub h;
@@ -185,7 +185,7 @@ int main() {
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
-  double max_s = 6945.554;
+  double max_s = 6945.554; // total length of the road
 
 
 
@@ -197,8 +197,8 @@ int main() {
   	double x;
   	double y;
   	float s;
-  	float d_x;
-  	float d_y;
+  	float d_x; // normal component in x axis for this way point
+  	float d_y; // normal component in y axis for this way point
   	iss >> x;
   	iss >> y;
   	iss >> s;
@@ -275,7 +275,7 @@ int main() {
 	        for(int i=0; i<sensor_fusion.size(); i++){
 
 		        // check whether this car is in my lane
-		        float d = sensor_fusion[i][6]; // the 6th value is d value
+		        float d = sensor_fusion[i][6]; // the 7th value is d value
 		        if( d < (2+4*lane+2) && d > (2+4*lane-2) ){
 			        double vx = sensor_fusion[i][3];
 			        double vy = sensor_fusion[i][4];
@@ -291,6 +291,8 @@ int main() {
 
 				        //ref_vel = 29.5; //mph
 				        too_close = true;
+
+								// add cost function to change the lane
 				        if (lane > 0)
 					        lane = 0;
 
@@ -298,10 +300,14 @@ int main() {
 		        }
 	        }
 
+
+
 	        if(too_close)
 		        ref_vel -= 0.224;  // is about 5 m/s2, which is under the requirement 10 m/s2
-	        else if(ref_vel < 49.5)
+	        else if(ref_vel < 49.5) // speed limit is 49.5 mph
 		        ref_vel += 0.224;
+
+
 
           // create a list of widely spaced (x,y) waypoints, evenly spaced at 30 meteres
           // later we will interpolate these waypoints with a spline and fill it in with
@@ -395,10 +401,12 @@ int main() {
 	        double target_dist = sqrt( target_x * target_x + target_y * target_y);
 	        double x_add_on = 0;
 
+	        double N = target_dist / (0.02*ref_vel/2.24);  // divide by 2.24 to transfer from miles/h to meters/s
+	        double x_step = target_x / N;
+
 	        for (int i = 1; i <= 50 - previous_path_x.size(); i++){
 
-		        double N = target_dist / (0.02*ref_vel/2.24);  // divide by 2.24 to transfer from miles/h to meters/s
-		        double x_point = x_add_on + target_x / N;
+		        double x_point = x_add_on + x_step;
 		        double y_point = s(x_point);
 
 		        x_add_on = x_point;
@@ -406,7 +414,7 @@ int main() {
 		        double x_ref = x_point;
 		        double y_ref = y_point;
 
-		        // rotate back to normal after rotating it eariler
+		        // rotate back to world coordinate after rotating it eariler
 		        x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
 		        y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
 
